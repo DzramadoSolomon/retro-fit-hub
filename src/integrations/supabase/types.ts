@@ -14,13 +14,134 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      admin_codes: {
+        Row: {
+          code: string
+          created_at: string
+          id: string
+          is_active: boolean
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+        }
+        Relationships: []
+      }
+      check_ins: {
+        Row: {
+          check_in_date: string
+          created_at: string
+          id: string
+          member_id: string
+        }
+        Insert: {
+          check_in_date?: string
+          created_at?: string
+          id?: string
+          member_id: string
+        }
+        Update: {
+          check_in_date?: string
+          created_at?: string
+          id?: string
+          member_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "check_ins_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      members: {
+        Row: {
+          contact: string
+          created_at: string
+          created_by: string | null
+          full_name: string
+          gym_id: string
+          id: string
+          join_date: string
+          needs_spotter: boolean
+          plan: string
+          schedule: Json
+          updated_at: string
+        }
+        Insert: {
+          contact: string
+          created_at?: string
+          created_by?: string | null
+          full_name: string
+          gym_id: string
+          id?: string
+          join_date?: string
+          needs_spotter?: boolean
+          plan: string
+          schedule?: Json
+          updated_at?: string
+        }
+        Update: {
+          contact?: string
+          created_at?: string
+          created_by?: string | null
+          full_name?: string
+          gym_id?: string
+          id?: string
+          join_date?: string
+          needs_spotter?: boolean
+          plan?: string
+          schedule?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          display_name: string | null
+          email: string | null
+          id: string
+          is_admin: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          display_name?: string | null
+          email?: string | null
+          id?: string
+          is_admin?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          display_name?: string | null
+          email?: string | null
+          id?: string
+          is_admin?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      verify_admin_code: { Args: { p_code: string }; Returns: boolean }
     }
     Enums: {
       [_ in never]: never
