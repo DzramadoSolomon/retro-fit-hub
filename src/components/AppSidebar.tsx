@@ -37,7 +37,7 @@ export function AppSidebar() {
             </div>
           )}
         </div>
-        <SidebarGroup defaultOpen>
+        <SidebarGroup>
           <SidebarGroupLabel className="text-muted-foreground font-mono text-[10px] tracking-widest">
             {!collapsed && "NAVIGATION"}
           </SidebarGroupLabel>
