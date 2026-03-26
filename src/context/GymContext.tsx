@@ -1,12 +1,16 @@
-import React, { createContext, useContext, useState, useCallback } from "react";
+import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
 import { Member, PlanLevel, ScheduleSlot } from "@/types/gym";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/context/AuthContext";
 
 interface GymContextType {
   members: Member[];
-  addMember: (data: { fullName: string; contact: string; plan: PlanLevel; schedule: ScheduleSlot[]; needsSpotter: boolean }) => Member;
-  checkIn: (gymId: string) => { success: boolean; member?: Member; message: string };
+  loading: boolean;
+  addMember: (data: { fullName: string; contact: string; plan: PlanLevel; schedule: ScheduleSlot[]; needsSpotter: boolean }) => Promise<Member>;
+  checkIn: (gymId: string) => Promise<{ success: boolean; member?: Member; message: string }>;
   getMember: (gymId: string) => Member | undefined;
   getComplianceRate: (member: Member) => number;
+  refreshMembers: () => Promise<void>;
 }
 
 const GymContext = createContext<GymContextType | null>(null);
@@ -17,34 +21,90 @@ const generateGymId = () => {
 };
 
 export const GymProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [members, setMembers] = useState<Member[]>(() => {
-    const saved = localStorage.getItem("gymfit-members");
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [members, setMembers] = useState<Member[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
 
-  const persist = (updated: Member[]) => {
-    setMembers(updated);
-    localStorage.setItem("gymfit-members", JSON.stringify(updated));
-  };
+  const fetchMembers = useCallback(async () => {
+    setLoading(true);
+    const { data: membersData, error } = await supabase
+      .from("members")
+      .select("*")
+      .order("created_at", { ascending: false });
 
-  const addMember = useCallback((data: { fullName: string; contact: string; plan: PlanLevel; schedule: ScheduleSlot[]; needsSpotter: boolean }) => {
+    if (error) {
+      console.error("Error fetching members:", error);
+      setLoading(false);
+      return;
+    }
+
+    // Fetch check-ins for all members
+    const { data: checkInsData } = await supabase
+      .from("check_ins")
+      .select("member_id, check_in_date");
+
+    const checkInsMap: Record<string, string[]> = {};
+    checkInsData?.forEach(ci => {
+      if (!checkInsMap[ci.member_id]) checkInsMap[ci.member_id] = [];
+      checkInsMap[ci.member_id].push(ci.check_in_date);
+    });
+
+    const mapped: Member[] = (membersData || []).map(m => ({
+      id: m.id,
+      gymId: m.gym_id,
+      fullName: m.full_name,
+      contact: m.contact,
+      plan: m.plan as PlanLevel,
+      schedule: (m.schedule as any) || [],
+      needsSpotter: m.needs_spotter,
+      joinDate: m.join_date,
+      checkIns: checkInsMap[m.id] || [],
+    }));
+
+    setMembers(mapped);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    if (user) fetchMembers();
+  }, [user, fetchMembers]);
+
+  const addMember = useCallback(async (data: { fullName: string; contact: string; plan: PlanLevel; schedule: ScheduleSlot[]; needsSpotter: boolean }): Promise<Member> => {
+    const gymId = generateGymId();
+
+    const { data: inserted, error } = await supabase
+      .from("members")
+      .insert({
+        gym_id: gymId,
+        full_name: data.fullName,
+        contact: data.contact,
+        plan: data.plan,
+        schedule: data.schedule as any,
+        needs_spotter: data.needsSpotter,
+        created_by: user?.id,
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
     const member: Member = {
-      id: crypto.randomUUID(),
-      gymId: generateGymId(),
-      fullName: data.fullName,
-      contact: data.contact,
-      plan: data.plan,
-      schedule: data.schedule,
-      needsSpotter: data.needsSpotter,
-      joinDate: new Date().toISOString(),
+      id: inserted.id,
+      gymId: inserted.gym_id,
+      fullName: inserted.full_name,
+      contact: inserted.contact,
+      plan: inserted.plan as PlanLevel,
+      schedule: (inserted.schedule as any) || [],
+      needsSpotter: inserted.needs_spotter,
+      joinDate: inserted.join_date,
       checkIns: [],
     };
-    const updated = [...members, member];
-    persist(updated);
-    return member;
-  }, [members]);
 
-  const checkIn = useCallback((gymId: string) => {
+    setMembers(prev => [member, ...prev]);
+    return member;
+  }, [user]);
+
+  const checkIn = useCallback(async (gymId: string) => {
     const member = members.find(m => m.gymId.toLowerCase() === gymId.toLowerCase());
     if (!member) return { success: false, message: "Member not found. Check your Gym ID." };
 
@@ -53,11 +113,20 @@ export const GymProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return { success: true, member, message: `Welcome back, ${member.fullName}! Already checked in today.` };
     }
 
-    const updated = members.map(m =>
-      m.id === member.id ? { ...m, checkIns: [...m.checkIns, today] } : m
-    );
-    persist(updated);
-    return { success: true, member: { ...member, checkIns: [...member.checkIns, today] }, message: `Welcome, ${member.fullName}! Session logged.` };
+    const { error } = await supabase
+      .from("check_ins")
+      .insert({ member_id: member.id, check_in_date: today });
+
+    if (error) {
+      if (error.code === "23505") {
+        return { success: true, member, message: `Welcome back, ${member.fullName}! Already checked in today.` };
+      }
+      return { success: false, message: "Check-in failed. Please try again." };
+    }
+
+    const updatedMember = { ...member, checkIns: [...member.checkIns, today] };
+    setMembers(prev => prev.map(m => m.id === member.id ? updatedMember : m));
+    return { success: true, member: updatedMember, message: `Welcome, ${member.fullName}! Session logged.` };
   }, [members]);
 
   const getMember = useCallback((gymId: string) => {
@@ -72,7 +141,7 @@ export const GymProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, []);
 
   return (
-    <GymContext.Provider value={{ members, addMember, checkIn, getMember, getComplianceRate }}>
+    <GymContext.Provider value={{ members, loading, addMember, checkIn, getMember, getComplianceRate, refreshMembers: fetchMembers }}>
       {children}
     </GymContext.Provider>
   );

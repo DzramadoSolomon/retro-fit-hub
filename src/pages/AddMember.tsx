@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useGym } from "@/context/GymContext";
-import { PlanLevel, PLAN_LABELS, PLAN_PRICES, SPOTTER_COST, DAYS, SESSION_TIMES, DayOfWeek, SessionTime, ScheduleSlot } from "@/types/gym";
+import { PlanLevel, PLAN_LABELS, PLAN_PRICES_USD, SPOTTER_COST_USD, DAYS, SESSION_TIMES, DayOfWeek, SessionTime, ScheduleSlot, formatDualPrice } from "@/types/gym";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,6 +16,7 @@ const AddMember = () => {
   const [schedule, setSchedule] = useState<ScheduleSlot[]>([]);
   const [needsSpotter, setNeedsSpotter] = useState(false);
   const [createdId, setCreatedId] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   const maxSessions = plan === "1x" ? 1 : plan === "2x" ? 2 : 3;
 
@@ -30,7 +31,7 @@ const AddMember = () => {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!fullName.trim() || !contact.trim()) {
       toast.error("Please fill in all fields");
@@ -40,14 +41,23 @@ const AddMember = () => {
       toast.error(`Please select exactly ${maxSessions} session(s)`);
       return;
     }
-    const member = addMember({ fullName: fullName.trim(), contact: contact.trim(), plan, schedule, needsSpotter });
-    setCreatedId(member.gymId);
-    toast.success(`Member registered! Gym ID: ${member.gymId}`);
-    setFullName("");
-    setContact("");
-    setSchedule([]);
-    setNeedsSpotter(false);
+    setSubmitting(true);
+    try {
+      const member = await addMember({ fullName: fullName.trim(), contact: contact.trim(), plan, schedule, needsSpotter });
+      setCreatedId(member.gymId);
+      toast.success(`Member registered! Gym ID: ${member.gymId}`);
+      setFullName("");
+      setContact("");
+      setSchedule([]);
+      setNeedsSpotter(false);
+    } catch {
+      toast.error("Failed to register member");
+    } finally {
+      setSubmitting(false);
+    }
   };
+
+  const totalUsd = PLAN_PRICES_USD[plan] + (needsSpotter ? SPOTTER_COST_USD : 0);
 
   return (
     <div className="max-w-2xl mx-auto space-y-8">
@@ -93,7 +103,9 @@ const AddMember = () => {
                 <div className={`text-lg font-display font-bold ${plan === p ? "neon-text-teal" : "text-foreground"}`}>
                   {PLAN_LABELS[p]}
                 </div>
-                <div className="text-xs text-muted-foreground font-mono mt-1">${PLAN_PRICES[p]}/mo</div>
+                <div className="text-xs text-muted-foreground font-mono mt-1">
+                  {formatDualPrice(PLAN_PRICES_USD[p])}/mo
+                </div>
               </button>
             ))}
           </div>
@@ -143,18 +155,18 @@ const AddMember = () => {
         <div className="flex items-center justify-between retro-card p-4 border border-border">
           <div>
             <Label className="text-sm font-mono text-foreground">Gym Spotter</Label>
-            <p className="text-xs text-muted-foreground font-mono">Personal spotter assistance (+${SPOTTER_COST}/mo)</p>
+            <p className="text-xs text-muted-foreground font-mono">Personal spotter assistance (+{formatDualPrice(SPOTTER_COST_USD)}/mo)</p>
           </div>
           <Switch checked={needsSpotter} onCheckedChange={setNeedsSpotter} />
         </div>
 
         <div className="flex items-center justify-between pt-2">
           <div className="text-sm font-mono text-muted-foreground">
-            Total: <span className="neon-text-teal font-bold text-lg">${PLAN_PRICES[plan] + (needsSpotter ? SPOTTER_COST : 0)}/mo</span>
+            Total: <span className="neon-text-teal font-bold text-lg">{formatDualPrice(totalUsd)}/mo</span>
           </div>
-          <Button type="submit" className="bg-primary text-primary-foreground hover:bg-primary/90 font-mono">
+          <Button type="submit" disabled={submitting} className="bg-primary text-primary-foreground hover:bg-primary/90 font-mono">
             <UserPlus className="h-4 w-4 mr-2" />
-            Register Member
+            {submitting ? "Registering..." : "Register Member"}
           </Button>
         </div>
       </form>

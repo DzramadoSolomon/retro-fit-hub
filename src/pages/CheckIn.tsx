@@ -8,13 +8,21 @@ const CheckIn = () => {
   const { checkIn } = useGym();
   const [gymId, setGymId] = useState("");
   const [result, setResult] = useState<{ success: boolean; message: string; memberName?: string } | null>(null);
+  const [checking, setChecking] = useState(false);
 
-  const handleCheckIn = (e: React.FormEvent) => {
+  const handleCheckIn = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!gymId.trim()) return;
-    const res = checkIn(gymId.trim());
-    setResult({ success: res.success, message: res.message, memberName: res.member?.fullName });
-    if (res.success) setGymId("");
+    setChecking(true);
+    try {
+      const res = await checkIn(gymId.trim());
+      setResult({ success: res.success, message: res.message, memberName: res.member?.fullName });
+      if (res.success) setGymId("");
+    } catch {
+      setResult({ success: false, message: "Check-in failed. Please try again." });
+    } finally {
+      setChecking(false);
+    }
   };
 
   return (
@@ -35,9 +43,9 @@ const CheckIn = () => {
             autoFocus
           />
         </div>
-        <Button type="submit" className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-mono h-12 text-lg">
+        <Button type="submit" disabled={checking} className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-mono h-12 text-lg">
           <ScanLine className="h-5 w-5 mr-2" />
-          Check In
+          {checking ? "Checking in..." : "Check In"}
         </Button>
       </form>
 
