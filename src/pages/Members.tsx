@@ -1,5 +1,5 @@
 import { useGym } from "@/context/GymContext";
-import { PLAN_LABELS } from "@/types/gym";
+import { PLAN_LABELS, formatDualPrice, PLAN_PRICES_USD, SPOTTER_COST_USD } from "@/types/gym";
 import { Button } from "@/components/ui/button";
 import { Download, Users } from "lucide-react";
 import { toast } from "sonner";
@@ -12,14 +12,18 @@ const Members = () => {
       toast.error("No members to export");
       return;
     }
-    const headers = ["Gym ID", "Full Name", "Contact", "Plan", "Spotter", "Join Date", "Check-ins", "Compliance %", "Status"];
+    const headers = ["Gym ID", "Full Name", "Contact", "Plan", "Price (USD)", "Price (GHS)", "Spotter", "Join Date", "Check-ins", "Compliance %", "Status"];
     const rows = members.map(m => {
       const rate = getComplianceRate(m);
+      const usd = PLAN_PRICES_USD[m.plan] + (m.needsSpotter ? SPOTTER_COST_USD : 0);
+      const ghs = Math.round(usd * 14.5);
       return [
         m.gymId,
         m.fullName,
         m.contact,
         PLAN_LABELS[m.plan],
+        `$${usd}`,
+        `GH₵${ghs}`,
         m.needsSpotter ? "Yes" : "No",
         new Date(m.joinDate).toLocaleDateString(),
         m.checkIns.length.toString(),
@@ -68,6 +72,7 @@ const Members = () => {
                   <th className="text-left p-3 text-xs text-muted-foreground uppercase tracking-widest">NAME</th>
                   <th className="text-left p-3 text-xs text-muted-foreground uppercase tracking-widest">CONTACT</th>
                   <th className="text-left p-3 text-xs text-muted-foreground uppercase tracking-widest">PLAN</th>
+                  <th className="text-left p-3 text-xs text-muted-foreground uppercase tracking-widest">MONTHLY FEE</th>
                   <th className="text-left p-3 text-xs text-muted-foreground uppercase tracking-widest">SPOTTER</th>
                   <th className="text-left p-3 text-xs text-muted-foreground uppercase tracking-widest">SCHEDULE</th>
                   <th className="text-left p-3 text-xs text-muted-foreground uppercase tracking-widest">CHECK-INS</th>
@@ -78,12 +83,14 @@ const Members = () => {
               <tbody>
                 {members.map(m => {
                   const rate = getComplianceRate(m);
+                  const totalUsd = PLAN_PRICES_USD[m.plan] + (m.needsSpotter ? SPOTTER_COST_USD : 0);
                   return (
                     <tr key={m.id} className="border-b border-border/50 hover:bg-muted/20 transition-colors">
                       <td className="p-3 neon-text-teal font-bold">{m.gymId}</td>
                       <td className="p-3 text-foreground">{m.fullName}</td>
                       <td className="p-3 text-muted-foreground">{m.contact}</td>
                       <td className="p-3 text-muted-foreground">{PLAN_LABELS[m.plan]}</td>
+                      <td className="p-3 text-foreground text-xs">{formatDualPrice(totalUsd)}</td>
                       <td className="p-3">
                         {m.needsSpotter ? (
                           <span className="neon-text-magenta">YES</span>

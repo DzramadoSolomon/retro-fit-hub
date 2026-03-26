@@ -27,13 +27,28 @@ export const PLAN_LABELS: Record<PlanLevel, string> = {
   "3x": "3× / Week",
 };
 
-export const PLAN_PRICES: Record<PlanLevel, number> = {
+export const PLAN_PRICES_USD: Record<PlanLevel, number> = {
   "1x": 30,
   "2x": 50,
   "3x": 70,
 };
 
-export const SPOTTER_COST = 15;
+export const USD_TO_GHS = 14.5; // approximate exchange rate
+
+export const PLAN_PRICES_GHS: Record<PlanLevel, number> = {
+  "1x": Math.round(PLAN_PRICES_USD["1x"] * USD_TO_GHS),
+  "2x": Math.round(PLAN_PRICES_USD["2x"] * USD_TO_GHS),
+  "3x": Math.round(PLAN_PRICES_USD["3x"] * USD_TO_GHS),
+};
+
+export const SPOTTER_COST_USD = 15;
+export const SPOTTER_COST_GHS = Math.round(SPOTTER_COST_USD * USD_TO_GHS);
+
+/** Format price in dual currency */
+export const formatDualPrice = (usd: number): string => {
+  const ghs = Math.round(usd * USD_TO_GHS);
+  return `$${usd} / GH₵${ghs}`;
+};
 
 export const DAYS: DayOfWeek[] = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
