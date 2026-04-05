@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useGym } from "@/context/GymContext";
-import { PlanLevel, PLAN_LABELS, PLAN_PRICES_USD, SPOTTER_COST_USD, DAYS, SESSION_TIMES, DayOfWeek, SessionTime, ScheduleSlot, formatDualPrice } from "@/types/gym";
+import { useAuth } from "@/context/AuthContext";
+import { PlanLevel, PLAN_LABELS, DAYS, SESSION_TIMES, DayOfWeek, SessionTime, ScheduleSlot } from "@/types/gym";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,6 +11,7 @@ import { UserPlus, Check } from "lucide-react";
 
 const AddMember = () => {
   const { addMember } = useGym();
+  const { gym } = useAuth();
   const [fullName, setFullName] = useState("");
   const [contact, setContact] = useState("");
   const [plan, setPlan] = useState<PlanLevel>("1x");
@@ -17,6 +19,11 @@ const AddMember = () => {
   const [needsSpotter, setNeedsSpotter] = useState(false);
   const [createdId, setCreatedId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  const planPrices = gym?.planPrices ?? { "1x": 30, "2x": 50, "3x": 70 };
+  const spotterCostUsd = gym?.spotterCost ?? 15;
+  const ghsRate = gym?.usdToGhsRate ?? 14.5;
+  const formatDual = (usd: number) => `$${usd} / GH₵${Math.round(usd * ghsRate)}`;
 
   const maxSessions = plan === "1x" ? 1 : plan === "2x" ? 2 : 3;
 
@@ -57,7 +64,7 @@ const AddMember = () => {
     }
   };
 
-  const totalUsd = PLAN_PRICES_USD[plan] + (needsSpotter ? SPOTTER_COST_USD : 0);
+  const totalUsd = (planPrices[plan] ?? 0) + (needsSpotter ? spotterCostUsd : 0);
 
   return (
     <div className="max-w-2xl mx-auto space-y-8">
@@ -104,7 +111,7 @@ const AddMember = () => {
                   {PLAN_LABELS[p]}
                 </div>
                 <div className="text-xs text-muted-foreground font-mono mt-1">
-                  {formatDualPrice(PLAN_PRICES_USD[p])}/mo
+                  {formatDual(planPrices[p] ?? 0)}/mo
                 </div>
               </button>
             ))}
@@ -155,14 +162,14 @@ const AddMember = () => {
         <div className="flex items-center justify-between retro-card p-4 border border-border">
           <div>
             <Label className="text-sm font-mono text-foreground">Gym Spotter</Label>
-            <p className="text-xs text-muted-foreground font-mono">Personal spotter assistance (+{formatDualPrice(SPOTTER_COST_USD)}/mo)</p>
+            <p className="text-xs text-muted-foreground font-mono">Personal spotter assistance (+{formatDual(spotterCostUsd)}/mo)</p>
           </div>
           <Switch checked={needsSpotter} onCheckedChange={setNeedsSpotter} />
         </div>
 
         <div className="flex items-center justify-between pt-2">
           <div className="text-sm font-mono text-muted-foreground">
-            Total: <span className="neon-text-teal font-bold text-lg">{formatDualPrice(totalUsd)}/mo</span>
+            Total: <span className="neon-text-teal font-bold text-lg">{formatDual(totalUsd)}/mo</span>
           </div>
           <Button type="submit" disabled={submitting} className="bg-primary text-primary-foreground hover:bg-primary/90 font-mono">
             <UserPlus className="h-4 w-4 mr-2" />

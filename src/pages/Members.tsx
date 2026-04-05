@@ -1,11 +1,17 @@
 import { useGym } from "@/context/GymContext";
-import { PLAN_LABELS, formatDualPrice, PLAN_PRICES_USD, SPOTTER_COST_USD } from "@/types/gym";
+import { useAuth } from "@/context/AuthContext";
+import { PLAN_LABELS } from "@/types/gym";
 import { Button } from "@/components/ui/button";
 import { Download, Users } from "lucide-react";
 import { toast } from "sonner";
 
 const Members = () => {
   const { members, getComplianceRate } = useGym();
+  const { gym } = useAuth();
+  const planPrices = gym?.planPrices ?? { "1x": 30, "2x": 50, "3x": 70 };
+  const spotterCostUsd = gym?.spotterCost ?? 15;
+  const ghsRate = gym?.usdToGhsRate ?? 14.5;
+  const formatDual = (usd: number) => `$${usd} / GH₵${Math.round(usd * ghsRate)}`;
 
   const exportCSV = () => {
     if (members.length === 0) {
@@ -15,8 +21,8 @@ const Members = () => {
     const headers = ["Gym ID", "Full Name", "Contact", "Plan", "Price (USD)", "Price (GHS)", "Spotter", "Join Date", "Check-ins", "Compliance %", "Status"];
     const rows = members.map(m => {
       const rate = getComplianceRate(m);
-      const usd = PLAN_PRICES_USD[m.plan] + (m.needsSpotter ? SPOTTER_COST_USD : 0);
-      const ghs = Math.round(usd * 14.5);
+      const usd = (planPrices[m.plan] ?? 0) + (m.needsSpotter ? spotterCostUsd : 0);
+      const ghs = Math.round(usd * ghsRate);
       return [
         m.gymId,
         m.fullName,
@@ -83,14 +89,14 @@ const Members = () => {
               <tbody>
                 {members.map(m => {
                   const rate = getComplianceRate(m);
-                  const totalUsd = PLAN_PRICES_USD[m.plan] + (m.needsSpotter ? SPOTTER_COST_USD : 0);
+                  const totalUsd = (planPrices[m.plan] ?? 0) + (m.needsSpotter ? spotterCostUsd : 0);
                   return (
                     <tr key={m.id} className="border-b border-border/50 hover:bg-muted/20 transition-colors">
                       <td className="p-3 neon-text-teal font-bold">{m.gymId}</td>
                       <td className="p-3 text-foreground">{m.fullName}</td>
                       <td className="p-3 text-muted-foreground">{m.contact}</td>
                       <td className="p-3 text-muted-foreground">{PLAN_LABELS[m.plan]}</td>
-                      <td className="p-3 text-foreground text-xs">{formatDualPrice(totalUsd)}</td>
+                      <td className="p-3 text-foreground text-xs">{formatDual(totalUsd)}</td>
                       <td className="p-3">
                         {m.needsSpotter ? (
                           <span className="neon-text-magenta">YES</span>
