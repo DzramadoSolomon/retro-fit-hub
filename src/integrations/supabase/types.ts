@@ -64,13 +64,56 @@ export type Database = {
           },
         ]
       }
+      gyms: {
+        Row: {
+          available_days: Json
+          created_at: string
+          id: string
+          location: string | null
+          name: string
+          owner_id: string
+          plan_prices: Json
+          session_times: Json
+          spotter_cost: number
+          updated_at: string
+          usd_to_ghs_rate: number
+        }
+        Insert: {
+          available_days?: Json
+          created_at?: string
+          id?: string
+          location?: string | null
+          name: string
+          owner_id: string
+          plan_prices?: Json
+          session_times?: Json
+          spotter_cost?: number
+          updated_at?: string
+          usd_to_ghs_rate?: number
+        }
+        Update: {
+          available_days?: Json
+          created_at?: string
+          id?: string
+          location?: string | null
+          name?: string
+          owner_id?: string
+          plan_prices?: Json
+          session_times?: Json
+          spotter_cost?: number
+          updated_at?: string
+          usd_to_ghs_rate?: number
+        }
+        Relationships: []
+      }
       members: {
         Row: {
           contact: string
           created_at: string
           created_by: string | null
           full_name: string
-          gym_id: string
+          gym_code: string
+          gym_id: string | null
           id: string
           join_date: string
           needs_spotter: boolean
@@ -83,7 +126,8 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           full_name: string
-          gym_id: string
+          gym_code: string
+          gym_id?: string | null
           id?: string
           join_date?: string
           needs_spotter?: boolean
@@ -96,7 +140,8 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           full_name?: string
-          gym_id?: string
+          gym_code?: string
+          gym_id?: string | null
           id?: string
           join_date?: string
           needs_spotter?: boolean
@@ -104,13 +149,22 @@ export type Database = {
           schedule?: Json
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "members_gym_id_fkey"
+            columns: ["gym_id"]
+            isOneToOne: false
+            referencedRelation: "gyms"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
           created_at: string
           display_name: string | null
           email: string | null
+          gym_id: string | null
           id: string
           is_admin: boolean
           updated_at: string
@@ -120,6 +174,7 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           email?: string | null
+          gym_id?: string | null
           id?: string
           is_admin?: boolean
           updated_at?: string
@@ -129,12 +184,21 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           email?: string | null
+          gym_id?: string | null
           id?: string
           is_admin?: boolean
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_gym_id_fkey"
+            columns: ["gym_id"]
+            isOneToOne: false
+            referencedRelation: "gyms"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
