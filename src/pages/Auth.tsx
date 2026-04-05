@@ -1,17 +1,19 @@
 import { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Dumbbell, LogIn, ShieldCheck } from "lucide-react";
+import { Dumbbell, LogIn, Mail, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { Navigate } from "react-router-dom";
 
 const Auth = () => {
-  const { user, isAdmin, loading } = useAuth();
-  const [adminCode, setAdminCode] = useState("");
-  const [verifying, setVerifying] = useState(false);
+  const { user, loading } = useAuth();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   if (loading) {
     return (
@@ -21,96 +23,116 @@ const Auth = () => {
     );
   }
 
-  // Already authenticated and admin
-  if (user && isAdmin) {
+  if (user) {
     return <Navigate to="/" replace />;
   }
 
   const handleGoogleSignIn = async () => {
-    const result = await lovable.auth.signInWithOAuth("google");
-    if (result.error) {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: window.location.origin },
+    });
+    if (error) {
       toast.error("Failed to sign in with Google");
     }
   };
 
-  const handleVerifyCode = async () => {
-    if (!adminCode.trim()) {
-      toast.error("Please enter admin code");
+  const handleEmailAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email.trim() || !password.trim()) {
+      toast.error("Please fill in all fields");
       return;
     }
-    setVerifying(true);
+    setSubmitting(true);
     try {
-      const { data, error } = await supabase.rpc("verify_admin_code", { p_code: adminCode.trim().toUpperCase() });
-      if (error) throw error;
-      if (data) {
-        toast.success("Admin access granted!");
-        window.location.reload();
+      if (isSignUp) {
+        const { error } = await supabase.auth.signUp({
+          email: email.trim(),
+          password,
+          options: { emailRedirectTo: window.location.origin },
+        });
+        if (error) throw error;
+        toast.success("Account created! Check your email to confirm, then sign in.");
       } else {
-        toast.error("Invalid admin code");
+        const { error } = await supabase.auth.signInWithPassword({
+          email: email.trim(),
+          password,
+        });
+        if (error) throw error;
       }
-    } catch {
-      toast.error("Verification failed");
+    } catch (err: any) {
+      toast.error(err.message || "Authentication failed");
     } finally {
-      setVerifying(false);
+      setSubmitting(false);
     }
   };
 
-  // Not logged in - show Google sign in
-  if (!user) {
-    return (
-      <div className="min-h-screen bg-background retro-grid flex items-center justify-center p-4">
-        <div className="retro-card p-8 border border-border max-w-sm w-full space-y-8 text-center">
-          <div className="space-y-2">
-            <Dumbbell className="h-14 w-14 mx-auto neon-text-teal" />
-            <h1 className="text-3xl font-display font-bold neon-text-teal">GymFit Doctor</h1>
-            <p className="text-xs font-mono text-muted-foreground tracking-widest uppercase">Retro Fitness Club</p>
-          </div>
-
-          <div className="space-y-4">
-            <p className="text-sm font-mono text-muted-foreground">Sign in to access the admin panel</p>
-            <Button
-              onClick={handleGoogleSignIn}
-              className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-mono h-12 text-base"
-            >
-              <LogIn className="h-5 w-5 mr-2" />
-              Sign in with Google
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Logged in but not admin - show code entry
   return (
     <div className="min-h-screen bg-background retro-grid flex items-center justify-center p-4">
       <div className="retro-card p-8 border border-border max-w-sm w-full space-y-8 text-center">
         <div className="space-y-2">
-          <ShieldCheck className="h-14 w-14 mx-auto neon-text-magenta" />
-          <h1 className="text-2xl font-display font-bold text-foreground">Admin Verification</h1>
-          <p className="text-xs font-mono text-muted-foreground">
-            Welcome, {user.user_metadata?.full_name || user.email}
+          <Dumbbell className="h-14 w-14 mx-auto neon-text-teal" />
+          <h1 className="text-3xl font-display font-bold neon-text-teal">GymFit Doctor</h1>
+          <p className="text-xs font-mono text-muted-foreground tracking-widest uppercase">
+            {isSignUp ? "Create your account" : "Sign in to continue"}
           </p>
-          <p className="text-sm font-mono text-muted-foreground mt-2">Enter your admin access code to continue</p>
         </div>
 
-        <div className="space-y-4">
+        <Button
+          onClick={handleGoogleSignIn}
+          variant="outline"
+          className="w-full border-border text-foreground hover:neon-border-teal font-mono h-12 text-base"
+        >
+          <LogIn className="h-5 w-5 mr-2" />
+          Continue with Google
+        </Button>
+
+        <div className="flex items-center gap-3">
+          <div className="flex-1 h-px bg-border" />
+          <span className="text-xs font-mono text-muted-foreground">OR</span>
+          <div className="flex-1 h-px bg-border" />
+        </div>
+
+        <form onSubmit={handleEmailAuth} className="space-y-4 text-left">
           <Input
-            value={adminCode}
-            onChange={e => setAdminCode(e.target.value.toUpperCase())}
-            placeholder="ADMIN CODE"
-            className="bg-muted border-border font-mono text-xl text-center tracking-widest h-14"
-            autoFocus
+            type="email"
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+            placeholder="Email"
+            className="bg-muted border-border font-mono h-12"
           />
+          <div className="relative">
+            <Input
+              type={showPassword ? "text" : "password"}
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              placeholder="Password"
+              className="bg-muted border-border font-mono h-12 pr-10"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            >
+              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
+          </div>
           <Button
-            onClick={handleVerifyCode}
-            disabled={verifying}
+            type="submit"
+            disabled={submitting}
             className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-mono h-12 text-base"
           >
-            <ShieldCheck className="h-5 w-5 mr-2" />
-            {verifying ? "Verifying..." : "Verify & Enter"}
+            <Mail className="h-5 w-5 mr-2" />
+            {submitting ? "Please wait..." : isSignUp ? "Sign Up" : "Sign In"}
           </Button>
-        </div>
+        </form>
+
+        <p className="text-xs font-mono text-muted-foreground">
+          {isSignUp ? "Already have an account?" : "Don't have an account?"}{" "}
+          <button onClick={() => setIsSignUp(!isSignUp)} className="neon-text-teal hover:underline">
+            {isSignUp ? "Sign In" : "Sign Up"}
+          </button>
+        </p>
       </div>
     </div>
   );

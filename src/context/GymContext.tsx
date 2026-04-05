@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
-import { Member, PlanLevel, ScheduleSlot } from "@/types/gym";
+import { Member, PlanLevel, ScheduleSlot, DayOfWeek, SessionTime } from "@/types/gym";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 
@@ -23,13 +23,19 @@ const generateGymId = () => {
 export const GymProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
-  const { user } = useAuth();
+  const { user, gym } = useAuth();
 
   const fetchMembers = useCallback(async () => {
+    if (!gym) {
+      setMembers([]);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     const { data: membersData, error } = await supabase
       .from("members")
       .select("*")
+      .eq("gym_id", gym.id)
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -51,7 +57,7 @@ export const GymProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const mapped: Member[] = (membersData || []).map(m => ({
       id: m.id,
-      gymId: m.gym_id,
+      gymId: m.gym_code,
       fullName: m.full_name,
       contact: m.contact,
       plan: m.plan as PlanLevel,
@@ -63,19 +69,22 @@ export const GymProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     setMembers(mapped);
     setLoading(false);
-  }, []);
+  }, [gym]);
 
   useEffect(() => {
-    if (user) fetchMembers();
-  }, [user, fetchMembers]);
+    if (user && gym) fetchMembers();
+    else if (!gym) { setMembers([]); setLoading(false); }
+  }, [user, gym, fetchMembers]);
 
   const addMember = useCallback(async (data: { fullName: string; contact: string; plan: PlanLevel; schedule: ScheduleSlot[]; needsSpotter: boolean }): Promise<Member> => {
+    if (!gym) throw new Error("No gym configured");
     const gymId = generateGymId();
 
     const { data: inserted, error } = await supabase
       .from("members")
       .insert({
-        gym_id: gymId,
+        gym_code: gymId,
+        gym_id: gym.id,
         full_name: data.fullName,
         contact: data.contact,
         plan: data.plan,
@@ -90,7 +99,7 @@ export const GymProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const member: Member = {
       id: inserted.id,
-      gymId: inserted.gym_id,
+      gymId: inserted.gym_code,
       fullName: inserted.full_name,
       contact: inserted.contact,
       plan: inserted.plan as PlanLevel,
@@ -102,7 +111,7 @@ export const GymProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     setMembers(prev => [member, ...prev]);
     return member;
-  }, [user]);
+  }, [user, gym]);
 
   const checkIn = useCallback(async (gymId: string) => {
     const member = members.find(m => m.gymId.toLowerCase() === gymId.toLowerCase());

@@ -1,4 +1,4 @@
-import { LayoutDashboard, UserPlus, ScanLine, Users, Dumbbell } from "lucide-react";
+import { LayoutDashboard, UserPlus, ScanLine, Users, Dumbbell, Settings } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import {
@@ -18,6 +18,7 @@ const items = [
   { title: "Add Member", url: "/add-member", icon: UserPlus },
   { title: "Check-In", url: "/check-in", icon: ScanLine },
   { title: "All Members", url: "/members", icon: Users },
+  { title: "Settings", url: "/settings", icon: Settings },
 ];
 
 export function AppSidebar() {

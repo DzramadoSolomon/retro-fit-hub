@@ -1,3 +1,4 @@
+import { useAuth } from "@/context/AuthContext";
 import { useGym } from "@/context/GymContext";
 import RetroStatCard from "@/components/RetroStatCard";
 import RetroGauge from "@/components/RetroGauge";
@@ -5,6 +6,7 @@ import { Users, UserCheck, UserX, Dumbbell } from "lucide-react";
 
 const Dashboard = () => {
   const { members, getComplianceRate } = useGym();
+  const { gym } = useAuth();
 
   const totalMembers = members.length;
   const compliant = members.filter(m => getComplianceRate(m) >= 70).length;
@@ -29,7 +31,7 @@ const Dashboard = () => {
     <div className="space-y-8">
       <div>
         <h1 className="text-3xl font-display font-bold neon-text-teal">Dashboard</h1>
-        <p className="text-sm text-muted-foreground font-mono mt-1">Retro Fitness Club — Admin Overview</p>
+        <p className="text-sm text-muted-foreground font-mono mt-1">{gym?.name ?? "Your Gym"} — Admin Overview</p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
